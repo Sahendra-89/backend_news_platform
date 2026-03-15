@@ -7,10 +7,39 @@ const pageRoutes = require('./routes/pages');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
+const morgan = require('morgan');
+
 // Connect Database
 connectDB();
 
 const app = express();
+
+// Middlewares
+app.use(morgan('dev')); // Log requests to console
+app.use(helmet()); // Sets various HTTP headers for security
+app.use(mongoSanitize()); // Prevent NoSQL injection attacks
+
+// Rate Limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: { message: 'Too many requests from this IP, please try again after 15 minutes' }
+});
+
+// Apply rate limiter to all routes
+app.use('/api/', limiter);
+
+// Specific stricter limiter for login/register
+const authLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10, // Limit each IP to 10 login attempts per hour
+    message: { message: 'Too many login attempts, please try again after an hour' }
+});
+app.use('/api/admin/login', authLimiter);
+app.use('/api/login', authLimiter);
 
 // CORS - allow local dev and production Vercel frontend
 const allowedOrigins = [

@@ -11,9 +11,23 @@ const auth = require('../auth');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const slugify = require('slugify');
+const { check, validationResult } = require('express-validator');
+
+// --- Helper for validation errors ---
+const validate = (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+    next();
+};
 
 // --- User Auth Routes ---
-router.post('/register', async (req, res) => {
+router.post('/register', [
+    check('username', 'Username is required').not().isEmpty().trim(),
+    check('email', 'Please include a valid email').isEmail().normalizeEmail(),
+    check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })
+], validate, async (req, res) => {
     const { username, email, password } = req.body;
     try {
         let user = await User.findOne({ email });
@@ -37,7 +51,10 @@ router.post('/register', async (req, res) => {
     }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', [
+    check('email', 'Please include a valid email').isEmail().normalizeEmail(),
+    check('password', 'Password is required').exists()
+], validate, async (req, res) => {
     const { email, password } = req.body;
     try {
         let user = await User.findOne({ email });
@@ -150,7 +167,10 @@ router.get('/news/id/:id', async (req, res) => {
 });
 
 // --- Admin Routes ---
-router.post('/admin/login', async (req, res) => {
+router.post('/admin/login', [
+    check('username', 'Username is required').not().isEmpty().trim(),
+    check('password', 'Password is required').exists()
+], validate, async (req, res) => {
     const { username, password } = req.body;
     try {
         let admin = await Admin.findOne({ username });
