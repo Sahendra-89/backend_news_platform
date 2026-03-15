@@ -9,6 +9,10 @@ const connectDB = async () => {
         process.exit(1);
     }
 
+    // Mask URI for safe logging
+    const maskedURI = connString.replace(/:([^@]+)@/, ':****@');
+    console.log(`📡 Attempting to connect to: ${maskedURI}`);
+
     const maxRetries = 5;
     let retries = 0;
 
