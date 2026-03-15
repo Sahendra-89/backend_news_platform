@@ -92,12 +92,25 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-    console.error('Server error:', err.message);
-    res.status(500).json({ message: 'Internal server error' });
+    // Check if it's a CORS error
+    if (err.message === 'Not allowed by CORS') {
+        console.error(`🔒 Security: ${err.message} for ${req.method} ${req.url} from origin: ${req.headers.origin}`);
+        return res.status(403).json({ 
+            message: 'CORS Error: This domain is not authorized to access this API.',
+            origin: req.headers.origin 
+        });
+    }
+
+    console.error('🔥 Server error:', err.stack || err.message);
+    res.status(500).json({ 
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined 
+    });
 });
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
