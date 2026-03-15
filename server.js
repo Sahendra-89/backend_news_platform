@@ -67,6 +67,11 @@ app.use('/api/login', authLimiter);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Root route - confirm server is running
+app.get('/', (req, res) => {
+    res.send('News Platform Backend is running!');
+});
+
 // Health check endpoint - used by Render to verify server is alive
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
