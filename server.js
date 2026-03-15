@@ -46,10 +46,13 @@ app.use(cors({
 app.use(express.json());
 app.use(mongoSanitize()); // Prevent NoSQL injection attacks (must be after express.json)
 
+// Trust proxy (required for Render/Vercel to get real user IP)
+app.set('trust proxy', 1);
+
 // Rate Limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    max: 500, // Increased to 500 requests per 15 mins
     message: { message: 'Too many requests from this IP, please try again after 15 minutes' }
 });
 
