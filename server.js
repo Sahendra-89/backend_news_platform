@@ -24,8 +24,10 @@ app.use(helmet()); // Sets various HTTP headers for security
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
-    process.env.FRONTEND_URL, // e.g. https://your-app.vercel.app
-].filter(Boolean); // remove undefined if FRONTEND_URL not set
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+    process.env.FRONTEND_URL,
+].filter(Boolean);
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -34,6 +36,7 @@ app.use(cors({
         if (allowedOrigins.indexOf(origin) !== -1) {
             return callback(null, true);
         }
+        console.error(`🚫 CORS Blocked: Origin "${origin}" is not in the allowed list.`);
         return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
