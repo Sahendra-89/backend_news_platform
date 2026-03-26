@@ -8,6 +8,7 @@ const Video = require('../models/Video');
 const Setting = require('../models/Setting');
 const ServiceRequest = require('../models/ServiceRequest');
 const auth = require('../auth');
+const requireSuperAdmin = require('../middleware/requireSuperAdmin');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const slugify = require('slugify');
@@ -287,19 +288,26 @@ router.get('/admin/list', auth, async (req, res) => {
     }
 });
 
-router.post('/admin/register', auth, async (req, res) => {
-    if (req.user.admin.role !== 'superadmin') return res.status(403).json({ msg: 'Access denied: Super Admin only' });
+router.post('/admin/register', auth, requireSuperAdmin, async (req, res) => {
     const { username, password, role } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ msg: 'Username and password are required.' });
+    }
+    if (password.length < 6) {
+        return res.status(400).json({ msg: 'Password must be at least 6 characters.' });
+    }
+    // Prevent creating another superadmin unless explicitly desired
+    const assignedRole = role === 'superadmin' ? 'superadmin' : 'employee';
     try {
         let admin = await Admin.findOne({ username });
-        if (admin) return res.status(400).json({ msg: 'Admin already exists' });
+        if (admin) return res.status(400).json({ msg: 'Admin already exists with that username.' });
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        admin = new Admin({ username, password: hashedPassword, role: role || 'employee' });
+        admin = new Admin({ username, password: hashedPassword, role: assignedRole });
         await admin.save();
-        res.json({ msg: 'New admin created successfully' });
+        res.json({ msg: `Access granted! ${username} added as ${assignedRole}.`, admin: { username: admin.username, role: admin.role, _id: admin._id } });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -340,11 +348,16 @@ router.post('/admin/public-register', async (req, res) => {
     }
 });
 
-router.delete('/admin/delete/:id', auth, async (req, res) => {
-    if (req.user.admin.role !== 'superadmin') return res.status(403).json({ msg: 'Access denied: Super Admin only' });
+router.delete('/admin/delete/:id', auth, requireSuperAdmin, async (req, res) => {
     try {
+        const target = await Admin.findById(req.params.id);
+        if (!target) return res.status(404).json({ msg: 'Admin not found.' });
+        // Prevent deleting another superadmin
+        if (target.role === 'superadmin') {
+            return res.status(403).json({ msg: 'Cannot revoke access from another Super Admin.' });
+        }
         await Admin.findByIdAndDelete(req.params.id);
-        res.json({ msg: 'Admin removed successfully' });
+        res.json({ msg: 'Access successfully revoked.' });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');

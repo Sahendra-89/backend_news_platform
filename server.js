@@ -19,7 +19,9 @@ const app = express();
 
 // Middlewares
 app.use(morgan('dev')); // Log requests to console
-app.use(helmet()); // Sets various HTTP headers for security
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' } // Allow frontend (different port/domain) to load images
+}));
 // CORS - allow local dev and production Vercel frontend
 const allowedOrigins = [
     'http://localhost:5173',
@@ -68,7 +70,10 @@ const authLimiter = rateLimit({
 app.use('/api/admin/login', authLimiter);
 app.use('/api/login', authLimiter);
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', (req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+}, express.static(path.join(__dirname, 'uploads')));
 
 // Root route - confirm server is running
 app.get('/', (req, res) => {
@@ -95,16 +100,16 @@ app.use((err, req, res, next) => {
     // Check if it's a CORS error
     if (err.message === 'Not allowed by CORS') {
         console.error(`🔒 Security: ${err.message} for ${req.method} ${req.url} from origin: ${req.headers.origin}`);
-        return res.status(403).json({ 
+        return res.status(403).json({
             message: 'CORS Error: This domain is not authorized to access this API.',
-            origin: req.headers.origin 
+            origin: req.headers.origin
         });
     }
 
     console.error('🔥 Server error:', err.stack || err.message);
-    res.status(500).json({ 
+    res.status(500).json({
         message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined 
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
 });
 
